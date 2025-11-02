@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Renzoid</title>
+  <link rel="stylesheet" href="renzoid.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6C5CE7">
+</head>
+<body>
+  <!--
+    Renzoid — change log (developer notes)
+    Last updates added to this file:
+    - Added client-side auth modals (login & signup) and password fields.
+    - Added SHA-256 hashing of passwords in `renzoid_app.js` and stored `passwordHash` in localStorage.
+    - Login now validates username#tag + password and shows 'Wrong username or password' on mismatch.
+    - Added profile modal enhancements: Renzed display, +10 Renzed button, and a Log out button (clears saved user).
+    - Wired `renzoid_app.js` to handle signup/login/logout, messaging, renzed increments, and profile edits.
+    - Added a visible changelog panel (toggleable) so users can see recent updates in-browser.
+  -->
+
+  <button id="changelog-btn" title="What's new" style="position:fixed;right:14px;bottom:14px;z-index:2000;background:var(--accent);color:#fff;border:none;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow);cursor:pointer">What's new</button>
+  <div id="changelog-panel" style="display:none;position:fixed;right:14px;bottom:60px;z-index:2000;width:320px;max-width:calc(100% - 40px);background:var(--panel);color:var(--text);padding:12px;border-radius:10px;box-shadow:var(--shadow);font-size:13px">
+    <strong>Recent changes</strong>
+    <ul style="margin-top:8px;padding-left:18px">
+      <li>Sign up: username, numeric tag, password (stored as SHA-256 hash)</li>
+      <li>Login: enter <code>Username#tag</code> + password; shows error on mismatch</li>
+      <li>Profile: edit name/tag, view/add Renzed, Log out button (clears saved account)</li>
+      <li>Messages increment Renzed; client-side only (localStorage)</li>
+    </ul>
+    <div style="text-align:right;margin-top:8px"><button id="changelog-close" class="btn small">Close</button></div>
+  </div>
+
+  <div id="app" class="renzoid">
+    <!-- Servers -->
+    <div class="servers">
+      <div class="server home active">R</div>
+      <div class="server">G</div>
+      <div class="server">D</div>
+      <div class="server">C</div>
+      <div class="server" style="font-size: 24px">+</div>
+    </div>
+
+    <!-- Channels -->
+    <div class="channels">
+      <div class="server-header">
+        <span class="server-name">Renzoid</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </div>
+
+      <div class="channel-list">
+        <div class="channel-group">
+          <div class="channel-group-name">Information</div>
+          <div class="channel active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            welcome
+          </div>
+          <div class="channel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            announcements
+          </div>
+        </div>
+
+        <div class="channel-group">
+          <div class="channel-group-name">General</div>
+          <div class="channel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            general
+          </div>
+          <div class="channel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            off-topic
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat">
+      <div class="chat-header">
+        <div class="chat-name">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          welcome
+        </div>
+      </div>
+
+      <div class="messages"></div>
+
+      <div class="input-area">
+        <div class="input-box">
+          <input type="text" placeholder="Message #welcome" id="message-input">
+          <div class="input-actions">
+            <button>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                <line x1="9" y1="9" x2="9.01" y2="9"/>
+                <line x1="15" y1="9" x2="15.01" y2="9"/>
+              </svg>
+            </button>
+            <button>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div class="members">
+      <div class="member-header">Online — 3</div>
+      <div class="member">
+        <div class="member-avatar">
+          R
+          <div class="status"></div>
+        </div>
+        <div class="member-name">RenzBot</div>
+      </div>
+      <div class="member">
+        <div class="member-avatar">
+          A
+          <div class="status"></div>
+        </div>
+        <div class="member-name">Alex</div>
+      </div>
+      <div class="member">
+        <div class="member-avatar">
+          S
+          <div class="status"></div>
+        </div>
+        <div class="member-name">Sarah</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth modal: login / signup -->
+  <div id="auth-modal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:1300">
+    <div style="background:var(--panel);color:var(--text);padding:20px;border-radius:10px;max-width:420px;margin:auto;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:8px">Welcome to Renzoid</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button id="show-login" class="btn small">Login</button>
+        <button id="show-signup" class="btn small">Sign Up</button>
+      </div>
+
+      <form id="login-form" style="display:none">
+        <label style="display:block;margin-bottom:6px">Username#tag
+          <input id="login-username" placeholder="e.g. Alex#1234" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <label style="display:block;margin-top:8px">Password
+          <input id="login-password" type="password" placeholder="Your password" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button type="button" id="login-btn" class="btn">Login</button>
+        </div>
+      </form>
+
+      <form id="signup-form" style="display:block">
+        <label style="display:block;margin-bottom:6px">Username
+          <input id="signup-username" placeholder="e.g. Alex" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <label style="display:block;margin-top:8px">Tag (number)
+          <input id="signup-tag" placeholder="e.g. 1234" type="number" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <label style="display:block;margin-top:8px">Password
+          <input id="signup-password" type="password" placeholder="Create a password" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <label style="display:block;margin-top:8px">Confirm Password
+          <input id="signup-password-confirm" type="password" placeholder="Repeat password" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+        </label>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <button type="button" id="signup-btn" class="btn">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings / Profile modal -->
+  <div id="profile-modal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:1300">
+    <div style="background:var(--panel);color:var(--text);padding:20px;border-radius:10px;max-width:420px;margin:auto;box-shadow:var(--shadow);">
+      <h3 style="margin-bottom:8px">Profile</h3>
+      <label style="display:block;margin-bottom:8px">Display name
+        <input id="profile-username" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+      </label>
+      <label style="display:block;margin-bottom:8px">Tag
+        <input id="profile-tag" type="number" style="width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)" />
+      </label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0">
+        <div>
+          <div style="color:var(--muted);font-size:13px">Renzed</div>
+          <div id="profile-renzed" style="font-weight:700">0</div>
+        </div>
+        <div>
+          <button id="add-renzed" class="btn small">+10 Renzed</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div>
+          <button id="profile-logout" class="btn secondary" style="background:#4b2b2b;border-color:#6f3b3b;color:#fff">Log out</button>
+          <button id="profile-make-admin" class="btn small" style="margin-left:8px;background:#2b4b2b;border-color:#3b6f3b;color:#fff">Make admin</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button id="profile-cancel" class="btn secondary">Cancel</button>
+          <button id="profile-save" class="btn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renzoid_app.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="renzoid.js"></script>
+  <script>
+    // Changelog toggle handlers
+    (function(){
+      const btn = document.getElementById('changelog-btn');
+      const panel = document.getElementById('changelog-panel');
+      const close = document.getElementById('changelog-close');
+      if(!btn || !panel) return;
+      btn.addEventListener('click', ()=>{ panel.style.display = panel.style.display==='none'? 'block':'none'; });
+      close && close.addEventListener('click', ()=>{ panel.style.display='none'; });
+    })();
+  </script>
+  <script>
+    // Register a service worker to enable PWA install (requires HTTPS or localhost)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          console.log('ServiceWorker registered:', reg.scope);
+        }).catch(err => console.warn('ServiceWorker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
